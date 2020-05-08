@@ -1,0 +1,169 @@
+include gro
+
+
+signalX2 := signal(0.05, 1.8);
+signalY := signal(0.05, 1.8);
+signalA := signal(0.05, 1.8);
+signalB := signal(0.05, 1.8);
+signalC := signal(0.05, 1.8);
+signalMap := signal(10, 0);
+
+moleculeX1 := 0;
+moleculeX2 := 1;
+moleculeY := 2;
+moleculeA := 3;
+moleculeB := 4;
+moleculeC := 5;
+r := [ t := 0, count := 0 ];
+
+program X1() := {
+  set ( "ecoli_growth_rate", 0 );
+  ID := moleculeX1;
+  time := [ t := 0 , runT := 0];
+  prob := [ m1 := 0, m2 := 0];
+  gfp := 0;
+  rfp := 0;
+  bfp := 0;
+  mode := 0;
+  
+  mode = 0 : { run ( 2 ) }
+  mode = 1 : { tumble ( 100 ) }
+  mode = 0 & prob.m2 < prob.m1 & rate ( 0.5 ) : { mode := 1 }
+  mode = 0 & prob.m2  > prob.m1 & rate ( 0.01 ) : { mode := 1 }
+  mode = 1 & rate ( 0.01 ) : { mode := 0 }
+  
+  ID = moleculeX1 & just_divided & !daughter : { ID := moleculeA }
+  ID = moleculeX1 & just_divided &  daughter : { ID := moleculeY }
+ 
+  time.runT > 0.05 : {
+    time.runT := 0,
+    prob.m1 := prob.m2,
+    prob.m2 := get_signal(signalMap)
+  }
+
+  ID = moleculeA & get_signal(signalY) > 0.99 : {
+    time.t := 0;
+    ID := moleculeB;
+    r.count := r.count + 1;
+  }
+
+  ID = moleculeY & get_signal(signalX2) > 0.99 : {
+    die()
+  }
+
+  ID = moleculeB & get_signal(signalA) > 0.99 & time.t > 5: {
+    ID := moleculeA;
+    r.count := r.count - 1;
+  }
+  
+  ID = moleculeB & get_signal(signalC) > 0.99 : {
+    ID := moleculeA;
+    r.count := r.count - 1;
+  }
+
+  ID = moleculeX1 : {
+    set ( "ecoli_growth_rate", 1 );
+  }
+
+  ID = moleculeA : {
+    set ( "ecoli_growth_rate", 0 ),
+    bfp := 0,
+    gfp := 100*volume,
+    emit_signal(signalA,100)
+  }
+
+  ID = moleculeY : {
+    set ( "ecoli_growth_rate", 0 ),
+    rfp := 100*volume,
+    emit_signal(signalY,100)
+  }
+
+  ID = moleculeB : {
+    set ( "ecoli_growth_rate", 0 ),
+    gfp := 0,
+    bfp := 100*volume,
+    emit_signal(signalB,100)
+  }
+
+  true : { 
+    time.t := time.t + dt,
+    time.runT := time.runT +dt,
+  }
+};
+
+
+program X2() := {
+  set ( "ecoli_growth_rate", 0 );
+  ID := moleculeX2;
+  time := [ runT := 0];
+  prob := [ m1 := 0, m2 := 0];
+  yfp := 0;
+  rfp := 0;
+  mode := 0; 
+  
+  mode = 0 : { run ( 2 ) }
+  mode = 1 : { tumble ( 100 ) }
+  mode = 0 & prob.m2 < prob.m1 & rate ( 0.5 ) : { mode := 1 }
+  mode = 0 & prob.m2  > prob.m1 & rate ( 0.01 ) : { mode := 1 }
+  mode = 1 & rate ( 0.01 ) : { mode := 0 }
+  
+  time.runT > 0.05 : {
+    time.runT := 0,
+    prob.m1 := prob.m2,
+    prob.m2 := get_signal(signalMap)
+  }
+
+
+  ID = moleculeX2 & get_signal(signalY) > 0.99 : {
+    ID := moleculeC
+  }
+  
+  ID = moleculeC & get_signal(signalB) > 0.99 : {
+    die()
+  }
+  
+  ID = moleculeX2 : {
+    yfp := 100*volume,
+    emit_signal(signalX2,100)
+  }
+  
+  ID = moleculeC : {
+    yfp := 0,
+    rfp := 100*volume,
+    emit_signal(signalC,100)
+  }
+  
+    true : {time.runT := time.runT + dt}
+  
+};
+
+program main() := {
+
+  true : { set_signal ( signalMap, 0, 0, 100 ) }
+  r.t >= 1: {
+    print ( "There are ", r.count, " B molecules" );
+    r.t := 0;
+  }  
+  true : {
+    r.t := r.t + dt
+  }
+};
+
+foreach q in range 100 do 
+  ecoli ( [ 
+      x := rand(300)-150, 
+      y := rand(300)-150, 
+      theta := 0.01*rand(628) ], 
+    program X1() )
+end;
+
+
+foreach q in range 10 do
+  ecoli ( [ 
+      x := rand(300)-150, 
+      y := rand(300)-150, 
+      theta := 0.01*rand(628) ],
+    program X2() )
+end;
+
+

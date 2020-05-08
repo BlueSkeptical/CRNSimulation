@@ -1,0 +1,102 @@
+include gro
+signalA := signal(0.05, 1.8);
+signalB := signal(0.05, 1.8);
+
+ORIGINAL := 0;
+OLDELEMENT := 1;
+NEWElEMENT := 2;
+
+program cellA() := {
+  set ( "ecoli_growth_rate", 0 );
+  ID := ORIGINAL;
+  gfp := 0;
+  rfp := 0;
+  mode := 0;
+  mode = 0 : { run (-2) }
+  mode = 1 : { tumble ( 100 ) }
+  mode = 0 & rate ( 0.05 ) : { mode := 1 }
+  mode = 1 & rate ( 0.5 ) : { mode := 0 }
+  ID = ORIGINAL & just_divided & !daughter : { ID := OLDELEMENT }
+  ID = ORIGINAL & just_divided &  daughter : { ID := NEWElEMENT }
+  
+  get_signal(signalB) > 0.99 : {
+    set ( "ecoli_growth_rate", 1 );
+  }
+
+  ID = ORIGINAL : {
+    gfp := 100*volume
+  }
+
+  ID = OLDELEMENT : {
+    set ( "ecoli_growth_rate", 0 ),
+    die()
+  }
+
+  ID = NEWElEMENT : {
+    set ( "ecoli_growth_rate", 0 ),
+    gfp := 0,
+    rfp := 100*volume
+  }
+ ID = ORIGINAL | ID = OLDELEMENT : {
+   emit_signal(signalA,100)
+ }
+};
+
+
+program cellB() := {
+  set ( "ecoli_growth_rate", 0 );
+  ID := ORIGINAL;
+  yfp := 0;
+  bfp := 0;
+  mode := 0;
+  mode = 0 : { run (2) }
+  mode = 1 : { tumble ( 100 ) }
+  mode = 0 & rate ( 0.05 ) : { mode := 1 }
+  mode = 1 & rate ( 0.5 ) : { mode := 0 }
+  ID = ORIGINAL & just_divided & !daughter : { ID := OLDELEMENT }
+  ID = ORIGINAL & just_divided &  daughter : { ID := NEWElEMENT }
+  
+  get_signal(signalA) > 0.99 : {
+    set ( "ecoli_growth_rate", 1 );
+  }
+
+  ID = ORIGINAL : {
+    yfp := 100*volume
+  }
+
+  ID = OLDELEMENT : {
+    set ( "ecoli_growth_rate", 0 ),
+    die()
+  }
+
+  ID = NEWElEMENT : {
+    set ( "ecoli_growth_rate", 0 ),
+    yfp := 0,
+    bfp := 100*volume
+  }
+
+ ID = ORIGINAL | ID = OLDELEMENT : {
+   emit_signal(signalB,100)
+ }
+};
+
+
+//ecoli ( [y:=50,theta:=3.14/2], program cellA() );
+//ecoli ( [y:=-50,theta:=3.14/2], program cellB() );
+
+foreach q in range 100 do 
+  ecoli ( [ 
+      x := rand(600)-300, 
+      y := rand(600)-300, 
+      theta := 0.01*rand(628) ], 
+    program cellA() )
+end;
+
+foreach q in range 100 do
+  ecoli ( [ 
+      x := rand(600)-300, 
+      y := rand(600)-300, 
+      theta := 0.01*rand(628) ],
+    program cellB() )
+end;
+
