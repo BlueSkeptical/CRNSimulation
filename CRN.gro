@@ -80,10 +80,6 @@ program cellB() := {
  }
 };
 
-
-//ecoli ( [y:=50,theta:=3.14/2], program cellA() );
-//ecoli ( [y:=-50,theta:=3.14/2], program cellB() );
-
 foreach q in range 100 do 
   ecoli ( [ 
       x := rand(600)-300, 
